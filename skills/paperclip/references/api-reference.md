@@ -538,3 +538,159 @@ Terminal states: `done`, `cancelled`
 | @-mention agents for no reason              | Each mention triggers a budget-consuming heartbeat    | Only mention agents who need to act                     |
 | Sit silently on blocked work                | Nobody knows you're stuck; the task rots              | Comment the blocker and escalate immediately            |
 | Leave tasks in ambiguous states             | Others can't tell if work is progressing              | Always update status: `blocked`, `in_review`, or `done` |
+
+---
+
+## Plugin System
+
+### Plugin Record (`GET /api/companies/:companyId/plugins/:pluginId`)
+
+```json
+{
+  "id": "plugin-1",
+  "companyId": "company-1",
+  "name": "Cost Dashboard Widget",
+  "description": "Shows monthly cost breakdown",
+  "status": "active",
+  "source": "agent",
+  "manifest": {
+    "name": "Cost Dashboard Widget",
+    "description": "Shows monthly cost breakdown",
+    "version": "1.0.0",
+    "slot": "dashboard",
+    "size": { "minHeight": 400 },
+    "permissions": {
+      "paperclip": ["costs", "agents"],
+      "externalHosts": [],
+      "secrets": []
+    }
+  },
+  "uiHtml": "<div>...</div>",
+  "approvalId": "approval-42",
+  "createdByAgentId": "agent-7",
+  "createdAt": "2025-01-15T10:30:00Z",
+  "updatedAt": "2025-01-15T10:30:00Z"
+}
+```
+
+**Status values:** `pending_review`, `active`, `disabled`
+**Source values:** `manual`, `agent`
+
+### Plugin Endpoints
+
+| Action | Method | Endpoint |
+|---|---|---|
+| List plugins | GET | `/api/companies/:companyId/plugins?status=active` |
+| Get plugin | GET | `/api/companies/:companyId/plugins/:pluginId` |
+| Create plugin | POST | `/api/companies/:companyId/plugins` |
+| Update plugin | PATCH | `/api/companies/:companyId/plugins/:pluginId` |
+| Delete plugin | DELETE | `/api/companies/:companyId/plugins/:pluginId` |
+| Proxy request | POST | `/api/companies/:companyId/plugins/:pluginId/proxy` |
+
+### Create Plugin Payload
+
+```json
+{
+  "name": "Plugin Name",
+  "description": "Optional description",
+  "manifest": { "...see manifest schema..." },
+  "uiHtml": "<div>Self-contained HTML</div>"
+}
+```
+
+### Update Plugin Payload
+
+`PATCH /api/companies/:companyId/plugins/:pluginId` — same fields as create, all optional:
+
+```json
+{
+  "name": "Updated Name",
+  "description": "Updated description",
+  "manifest": { "...updated manifest..." },
+  "uiHtml": "<div>Updated HTML</div>"
+}
+```
+
+### Create vs Update Decision Tree
+
+1. `GET /api/companies/:companyId/plugins` to list existing plugins
+2. If a plugin with the same name/purpose exists → `PATCH /api/companies/:companyId/plugins/:pluginId`
+3. If not → `POST /api/companies/:companyId/plugins`
+
+**Never create duplicates** — the server returns `409 Conflict` on duplicate names.
+
+### CSS Design Tokens (Available in Plugin Iframe)
+
+Plugins automatically receive Paperclip's CSS custom properties. Use these for consistent theming:
+
+| Token | Description |
+|---|---|
+| `--background` | Page background |
+| `--foreground` | Default text color |
+| `--card` | Card/surface background |
+| `--card-foreground` | Card text color |
+| `--primary` | Primary action color |
+| `--primary-foreground` | Text on primary |
+| `--muted` | Muted surface |
+| `--muted-foreground` | Secondary text |
+| `--border` | Border color |
+| `--destructive` | Error/danger color |
+| `--radius` | Border radius base |
+
+Dark mode is automatically synced. Use standard CSS `var(--token)` syntax.
+
+### Bridge API (Available as `window.paperclip` in Plugin Iframe)
+
+| Method | Description |
+|---|---|
+| `window.paperclip.query(entityType, filters?)` | Query Paperclip data. Entity types must be declared in manifest `permissions.paperclip`. Returns a promise. |
+| `window.paperclip.fetch(url, options?)` | Proxy HTTP request through Paperclip. Target host must be declared in manifest `permissions.externalHosts`. |
+| `window.paperclip.context` | Object with `{ companyId, pluginId, theme }`. Updated on load and theme changes. |
+| `window.paperclip.on(eventType, callback)` | Subscribe to events from the host app. |
+
+#### Query Examples
+
+```javascript
+// List all issues
+const issues = await window.paperclip.query("issues");
+
+// Filter issues
+const active = await window.paperclip.query("issues", { status: "in_progress" });
+
+// Get agents
+const agents = await window.paperclip.query("agents");
+
+// Get cost summary
+const costs = await window.paperclip.query("costs");
+```
+
+#### Fetch Example (Proxied)
+
+```javascript
+const data = await window.paperclip.fetch("https://api.example.com/data", {
+  method: "GET",
+  headers: { "Accept": "application/json" }
+});
+```
+
+### CSP and Network Access
+
+Plugin iframes enforce a strict Content Security Policy:
+
+```
+default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:
+```
+
+**Native `fetch()` and `XMLHttpRequest` are blocked by CSP.** They will silently fail. You must use:
+
+- `window.paperclip.fetch(url, opts)` for external HTTP requests (host must be declared in `manifest.permissions.externalHosts`)
+- `window.paperclip.query(entityType, filters?)` for Paperclip data (entity type must be declared in `manifest.permissions.paperclip`)
+
+### Common Plugin Mistakes
+
+| Mistake | Why it fails | Fix |
+|---|---|---|
+| Hardcode colors (`#fff`, `rgb(...)`) | Breaks in dark mode, inconsistent with app theme | Use `var(--background)`, `var(--foreground)`, etc. — see CSS Design Tokens above |
+| Use native `fetch()` or `XMLHttpRequest` | CSP blocks all direct network access | Use `window.paperclip.fetch()` or `window.paperclip.query()` |
+| Create a new plugin when one already exists | Duplicate name → 409 error, clutters plugin list | `GET` plugins first, `PATCH` if one with the same name exists |
+| Load external scripts/stylesheets | CSP blocks all external resources | Inline everything — scripts and styles must be in the HTML |

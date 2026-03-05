@@ -27,6 +27,7 @@ import {
   History,
   SquarePen,
   Plus,
+  Puzzle,
 } from "lucide-react";
 import { Identity } from "./Identity";
 import { agentUrl, projectUrl } from "../lib/utils";
@@ -36,7 +37,7 @@ export function CommandPalette() {
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
   const { selectedCompanyId } = useCompany();
-  const { openNewIssue, openNewAgent } = useDialog();
+  const { openNewIssue, openNewAgent, openNewPlugin } = useDialog();
   const searchQuery = query.trim();
 
   useEffect(() => {
@@ -127,6 +128,15 @@ export function CommandPalette() {
             <Plus className="mr-2 h-4 w-4" />
             Create new project
           </CommandItem>
+          <CommandItem
+            onSelect={() => {
+              setOpen(false);
+              openNewPlugin();
+            }}
+          >
+            <Puzzle className="mr-2 h-4 w-4" />
+            Create new plugin
+          </CommandItem>
         </CommandGroup>
 
         <CommandSeparator />
@@ -163,6 +173,10 @@ export function CommandPalette() {
           <CommandItem onSelect={() => go("/activity")}>
             <History className="mr-2 h-4 w-4" />
             Activity
+          </CommandItem>
+          <CommandItem onSelect={() => go("/plugins")}>
+            <Puzzle className="mr-2 h-4 w-4" />
+            Plugins
           </CommandItem>
         </CommandGroup>
 

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { Link } from "@/lib/router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCompany } from "../context/CompanyContext";
+import { useDialog } from "../context/DialogContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { companiesApi } from "../api/companies";
 import { accessApi } from "../api/access";
@@ -8,12 +10,14 @@ import { pluginsApi } from "../api/plugins";
 import { queryKeys } from "../lib/queryKeys";
 import { Button } from "@/components/ui/button";
 import { Settings, Puzzle } from "lucide-react";
+import { usePluginMutations } from "../hooks/usePluginMutations";
 import { StatusBadge } from "../components/StatusBadge";
 import { CompanyPatternIcon } from "../components/CompanyPatternIcon";
 import { Field, ToggleField, HintIcon } from "../components/agent-config-primitives";
 
 export function CompanySettings() {
   const { companies, selectedCompany, selectedCompanyId, setSelectedCompanyId } = useCompany();
+  const { openNewPlugin } = useDialog();
   const { setBreadcrumbs } = useBreadcrumbs();
   const queryClient = useQueryClient();
 
@@ -82,20 +86,8 @@ export function CompanySettings() {
     enabled: !!selectedCompanyId,
   });
 
-  const togglePluginMutation = useMutation({
-    mutationFn: ({ pluginId, newStatus }: { pluginId: string; newStatus: string }) =>
-      pluginsApi.update(selectedCompanyId!, pluginId, { status: newStatus }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.plugins.list(selectedCompanyId!) });
-    },
-  });
-
-  const deletePluginMutation = useMutation({
-    mutationFn: (pluginId: string) => pluginsApi.remove(selectedCompanyId!, pluginId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.plugins.list(selectedCompanyId!) });
-    },
-  });
+  const { toggleMutation: togglePluginMutation, deleteMutation: deletePluginMutation } =
+    usePluginMutations(selectedCompanyId);
 
   const archiveMutation = useMutation({
     mutationFn: ({
@@ -298,8 +290,21 @@ export function CompanySettings() {
 
       {/* Plugins */}
       <div className="space-y-4">
-        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          Plugins
+        <div className="flex items-center justify-between">
+          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Plugins
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/plugins"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Manage →
+            </Link>
+            <Button size="sm" variant="outline" onClick={() => openNewPlugin()}>
+              + New Plugin
+            </Button>
+          </div>
         </div>
         <div className="space-y-2 rounded-md border border-border px-4 py-4">
           {(!allPlugins || allPlugins.length === 0) ? (

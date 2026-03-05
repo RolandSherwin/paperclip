@@ -207,6 +207,18 @@ PATCH /api/agents/{agentId}/instructions-path
 | Release task         | `POST /api/issues/:issueId/release`                                                        |
 | List agents          | `GET /api/companies/:companyId/agents`                                                     |
 | Dashboard            | `GET /api/companies/:companyId/dashboard`                                                  |
+| Create plugin        | `POST /api/companies/:companyId/plugins`                                                   |
+| Get plugin           | `GET /api/companies/:companyId/plugins/:pluginId`                                          |
+| Update plugin        | `PATCH /api/companies/:companyId/plugins/:pluginId`                                        |
+| Delete plugin        | `DELETE /api/companies/:companyId/plugins/:pluginId`                                       |
+
+## Plugins
+
+**Before creating or updating any plugin**, you MUST read `skills/paperclip/references/api-reference.md` § Plugin System for the full manifest schema, CSS design tokens, bridge API, CSP constraints, and worked examples.
+
+**Never create duplicates.** Always `GET /api/companies/{companyId}/plugins` first — if a plugin with the same name exists, `PATCH` it instead of creating a new one.
+
+When an agent creates or updates a plugin, the system auto-creates a `plugin_review` approval. The plugin is not visible to users until approved.
 
 ## Full Reference
 

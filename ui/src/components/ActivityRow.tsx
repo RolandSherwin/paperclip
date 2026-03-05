@@ -39,6 +39,9 @@ const ACTION_VERBS: Record<string, string> = {
   "company.updated": "updated company",
   "company.archived": "archived",
   "company.budget_updated": "updated budget for",
+  "plugin.created": "created",
+  "plugin.updated": "updated",
+  "plugin.deleted": "deleted",
 };
 
 function humanizeValue(value: unknown): string {
@@ -72,6 +75,7 @@ function entityLink(entityType: string, entityId: string, name?: string | null):
     case "project": return `/projects/${deriveProjectUrlKey(name, entityId)}`;
     case "goal": return `/goals/${entityId}`;
     case "approval": return `/approvals/${entityId}`;
+    case "plugin": return `/plugins/${entityId}`;
     default: return null;
   }
 }

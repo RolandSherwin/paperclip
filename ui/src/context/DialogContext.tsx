@@ -11,6 +11,13 @@ interface NewGoalDefaults {
   parentId?: string;
 }
 
+interface NewPluginDefaults {
+  pluginId?: string;
+  assignedAgentId?: string;
+  name?: string;
+  description?: string;
+}
+
 interface OnboardingOptions {
   initialStep?: 1 | 2 | 3 | 4;
   companyId?: string;
@@ -31,6 +38,10 @@ interface DialogContextValue {
   newAgentOpen: boolean;
   openNewAgent: () => void;
   closeNewAgent: () => void;
+  newPluginOpen: boolean;
+  newPluginDefaults: NewPluginDefaults;
+  openNewPlugin: (defaults?: NewPluginDefaults) => void;
+  closeNewPlugin: () => void;
   onboardingOpen: boolean;
   onboardingOptions: OnboardingOptions;
   openOnboarding: (options?: OnboardingOptions) => void;
@@ -46,6 +57,8 @@ export function DialogProvider({ children }: { children: ReactNode }) {
   const [newGoalOpen, setNewGoalOpen] = useState(false);
   const [newGoalDefaults, setNewGoalDefaults] = useState<NewGoalDefaults>({});
   const [newAgentOpen, setNewAgentOpen] = useState(false);
+  const [newPluginOpen, setNewPluginOpen] = useState(false);
+  const [newPluginDefaults, setNewPluginDefaults] = useState<NewPluginDefaults>({});
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [onboardingOptions, setOnboardingOptions] = useState<OnboardingOptions>({});
 
@@ -85,6 +98,16 @@ export function DialogProvider({ children }: { children: ReactNode }) {
     setNewAgentOpen(false);
   }, []);
 
+  const openNewPlugin = useCallback((defaults: NewPluginDefaults = {}) => {
+    setNewPluginDefaults(defaults);
+    setNewPluginOpen(true);
+  }, []);
+
+  const closeNewPlugin = useCallback(() => {
+    setNewPluginOpen(false);
+    setNewPluginDefaults({});
+  }, []);
+
   const openOnboarding = useCallback((options: OnboardingOptions = {}) => {
     setOnboardingOptions(options);
     setOnboardingOpen(true);
@@ -112,6 +135,10 @@ export function DialogProvider({ children }: { children: ReactNode }) {
         newAgentOpen,
         openNewAgent,
         closeNewAgent,
+        newPluginOpen,
+        newPluginDefaults,
+        openNewPlugin,
+        closeNewPlugin,
         onboardingOpen,
         onboardingOptions,
         openOnboarding,

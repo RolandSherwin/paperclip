@@ -23,6 +23,8 @@ import { Activity } from "./pages/Activity";
 import { Inbox } from "./pages/Inbox";
 import { CompanySettings } from "./pages/CompanySettings";
 import { DesignGuide } from "./pages/DesignGuide";
+import { Plugins } from "./pages/Plugins";
+import { PluginDetail } from "./pages/PluginDetail";
 import { OrgChart } from "./pages/OrgChart";
 import { AuthPage } from "./pages/Auth";
 import { BoardClaimPage } from "./pages/BoardClaim";
@@ -128,6 +130,8 @@ function boardRoutes() {
       <Route path="inbox/new" element={<Inbox />} />
       <Route path="inbox/all" element={<Inbox />} />
       <Route path="design-guide" element={<DesignGuide />} />
+      <Route path="plugins" element={<Plugins />} />
+      <Route path="plugins/:pluginId" element={<PluginDetail />} />
     </>
   );
 }

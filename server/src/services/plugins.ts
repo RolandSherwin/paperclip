@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import { plugins } from "@paperclipai/db";
-import { badRequest, forbidden, notFound } from "../errors.js";
+import { badRequest, conflict, forbidden, notFound } from "../errors.js";
 import { secretService } from "./secrets.js";
 
 function sha256(input: string): string {
@@ -51,7 +51,7 @@ export function pluginService(db: Db) {
         .where(eq(plugins.id, id))
         .then((rows) => rows[0] ?? null),
 
-    create: (
+    create: async (
       companyId: string,
       data: {
         name: string;
@@ -62,23 +62,36 @@ export function pluginService(db: Db) {
         uiHtml: string;
         approvalId?: string | null;
       },
-    ) =>
-      db
-        .insert(plugins)
-        .values({
-          companyId,
-          name: data.name,
-          description: data.description ?? null,
-          source: data.source,
-          status: "pending_review",
-          createdByAgentId: data.createdByAgentId ?? null,
-          manifest: data.manifest,
-          uiHtml: data.uiHtml,
-          uiHtmlSha256: sha256(data.uiHtml),
-          approvalId: data.approvalId ?? null,
-        })
-        .returning()
-        .then((rows) => rows[0]),
+    ) => {
+      try {
+        return await db
+          .insert(plugins)
+          .values({
+            companyId,
+            name: data.name,
+            description: data.description ?? null,
+            source: data.source,
+            status: "pending_review",
+            createdByAgentId: data.createdByAgentId ?? null,
+            manifest: data.manifest,
+            uiHtml: data.uiHtml,
+            uiHtmlSha256: sha256(data.uiHtml),
+            approvalId: data.approvalId ?? null,
+          })
+          .returning()
+          .then((rows) => rows[0]);
+      } catch (error: unknown) {
+        if (
+          typeof error === "object" &&
+          error !== null &&
+          "code" in error &&
+          (error as { code?: string }).code === "23505"
+        ) {
+          throw conflict("A plugin with this name already exists");
+        }
+        throw error;
+      }
+    },
 
     update: async (
       id: string,
@@ -86,11 +99,13 @@ export function pluginService(db: Db) {
         status?: string;
         uiHtml?: string;
         manifest?: Record<string, unknown>;
+        approvalId?: string | null;
       },
     ) => {
       const set: Record<string, unknown> = { updatedAt: new Date() };
       if (data.status !== undefined) set.status = data.status;
       if (data.manifest) set.manifest = data.manifest;
+      if (data.approvalId !== undefined) set.approvalId = data.approvalId;
       if (data.uiHtml !== undefined) {
         set.uiHtml = data.uiHtml;
         set.uiHtmlSha256 = sha256(data.uiHtml);

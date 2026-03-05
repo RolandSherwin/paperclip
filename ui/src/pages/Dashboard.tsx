@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "@/lib/router";
 import { useQuery } from "@tanstack/react-query";
 import { dashboardApi } from "../api/dashboard";
@@ -20,7 +20,7 @@ import { ActivityRow } from "../components/ActivityRow";
 import { Identity } from "../components/Identity";
 import { timeAgo } from "../lib/timeAgo";
 import { cn, formatCents } from "../lib/utils";
-import { Bot, CircleDot, DollarSign, ShieldCheck, LayoutDashboard } from "lucide-react";
+import { Bot, ChevronRight, CircleDot, DollarSign, Eye, LayoutDashboard, ShieldCheck } from "lucide-react";
 import { ActiveAgentsPanel } from "../components/ActiveAgentsPanel";
 import { ChartCard, RunActivityChart, PriorityChart, IssueStatusChart, SuccessRateChart } from "../components/ActivityCharts";
 import { PageSkeleton } from "../components/PageSkeleton";
@@ -32,11 +32,39 @@ function getRecentIssues(issues: Issue[]): Issue[] {
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
 
+function useHiddenPlugins(companyId: string | null | undefined) {
+  const key = companyId ? `paperclip:${companyId}:plugins:hidden` : null;
+  const [hiddenIds, setHiddenIds] = useState<string[]>(() => {
+    if (!key) return [];
+    try { return JSON.parse(localStorage.getItem(key) ?? "[]"); } catch { return []; }
+  });
+
+  const prevKeyRef = useRef(key);
+  useEffect(() => {
+    if (!key || key === prevKeyRef.current) { prevKeyRef.current = key; return; }
+    prevKeyRef.current = key;
+    try { setHiddenIds(JSON.parse(localStorage.getItem(key) ?? "[]")); } catch { setHiddenIds([]); }
+  }, [key]);
+
+  const toggle = useCallback((pluginId: string) => {
+    if (!key) return;
+    setHiddenIds((prev) => {
+      const next = prev.includes(pluginId) ? prev.filter((id) => id !== pluginId) : [...prev, pluginId];
+      localStorage.setItem(key, JSON.stringify(next));
+      return next;
+    });
+  }, [key]);
+
+  return { hiddenIds, toggle };
+}
+
 export function Dashboard() {
   const { selectedCompanyId, companies } = useCompany();
   const { openOnboarding } = useDialog();
   const { setBreadcrumbs } = useBreadcrumbs();
   const [animatedActivityIds, setAnimatedActivityIds] = useState<Set<string>>(new Set());
+  const [selectedPluginId, setSelectedPluginId] = useState<string | null>(null);
+  const [pluginsCollapsed, setPluginsCollapsed] = useState(false);
   const seenActivityIdsRef = useRef<Set<string>>(new Set());
   const hydratedActivityRef = useRef(false);
   const activityAnimationTimersRef = useRef<number[]>([]);
@@ -87,7 +115,19 @@ export function Dashboard() {
     enabled: !!selectedCompanyId,
   });
 
-  const recentIssues = issues ? getRecentIssues(issues) : [];
+  const { hiddenIds: hiddenPluginIds, toggle: togglePluginHidden } = useHiddenPlugins(selectedCompanyId);
+  const visiblePlugins = useMemo(
+    () => (activePlugins ?? []).filter((p) => !hiddenPluginIds.includes(p.id)),
+    [activePlugins, hiddenPluginIds],
+  );
+  const hiddenPluginCount = (activePlugins?.length ?? 0) - visiblePlugins.length;
+
+  const effectivePluginId = useMemo(() => {
+    if (selectedPluginId && visiblePlugins.some((p) => p.id === selectedPluginId)) return selectedPluginId;
+    return visiblePlugins[0]?.id ?? null;
+  }, [selectedPluginId, visiblePlugins]);
+
+  const recentIssues = useMemo(() => issues ? getRecentIssues(issues) : [], [issues]);
   const recentActivity = useMemo(() => (activity ?? []).slice(0, 10), [activity]);
 
   useEffect(() => {
@@ -156,8 +196,9 @@ export function Dashboard() {
     for (const i of issues ?? []) map.set(`issue:${i.id}`, i.identifier ?? i.id.slice(0, 8));
     for (const a of agents ?? []) map.set(`agent:${a.id}`, a.name);
     for (const p of projects ?? []) map.set(`project:${p.id}`, p.name);
+    for (const p of activePlugins ?? []) map.set(`plugin:${p.id}`, p.name);
     return map;
-  }, [issues, agents, projects]);
+  }, [issues, agents, projects, activePlugins]);
 
   const entityTitleMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -166,8 +207,8 @@ export function Dashboard() {
   }, [issues]);
 
   const agentName = (id: string | null) => {
-    if (!id || !agents) return null;
-    return agents.find((a) => a.id === id)?.name ?? null;
+    if (!id) return null;
+    return agentMap.get(id)?.name ?? null;
   };
 
   if (!selectedCompanyId) {
@@ -285,13 +326,69 @@ export function Dashboard() {
           </div>
 
           {activePlugins && activePlugins.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Plugins</h3>
-              <div className="grid md:grid-cols-2 gap-4">
-                {activePlugins.map((plugin) => (
-                  <PluginPanel key={plugin.id} pluginId={plugin.id} />
-                ))}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors"
+                  onClick={() => setPluginsCollapsed(!pluginsCollapsed)}
+                >
+                  <ChevronRight className={cn("h-3.5 w-3.5 transition-transform", !pluginsCollapsed && "rotate-90")} />
+                  Plugins ({activePlugins.length} active)
+                </button>
+                <Link to="/plugins" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  Manage →
+                </Link>
               </div>
+              {!pluginsCollapsed && (
+                <>
+                  <div className="flex items-center gap-1 border-b border-border">
+                    {visiblePlugins.map((plugin) => {
+                      const isSelected = effectivePluginId === plugin.id;
+                      return (
+                        <div key={plugin.id} className="flex items-center -mb-px">
+                          <button
+                            type="button"
+                            className={cn(
+                              "px-3 py-1.5 text-sm transition-colors",
+                              isSelected
+                                ? "border-b-2 border-primary font-medium text-foreground"
+                                : "text-muted-foreground hover:text-foreground"
+                            )}
+                            onClick={() => setSelectedPluginId(plugin.id)}
+                          >
+                            {plugin.name}
+                          </button>
+                          <button
+                            type="button"
+                            className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+                            onClick={() => togglePluginHidden(plugin.id)}
+                            title="Hide plugin from dashboard"
+                          >
+                            <Eye className="h-3 w-3" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                    {hiddenPluginCount > 0 && (
+                      <button
+                        type="button"
+                        className="px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        onClick={() => {
+                          for (const p of activePlugins!) {
+                            if (hiddenPluginIds.includes(p.id)) togglePluginHidden(p.id);
+                          }
+                        }}
+                      >
+                        {hiddenPluginCount} hidden
+                      </button>
+                    )}
+                  </div>
+                  {visiblePlugins.length > 0 && (
+                    <PluginPanel pluginId={effectivePluginId!} />
+                  )}
+                </>
+              )}
             </div>
           )}
 
