@@ -1,8 +1,9 @@
 import { and, asc, eq } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
-import { approvalComments, approvals } from "@paperclipai/db";
+import { approvalComments, approvals, plugins } from "@paperclipai/db";
 import { notFound, unprocessable } from "../errors.js";
 import { agentService } from "./agents.js";
+import { publishLiveEvent } from "./live-events.js";
 
 export function approvalService(db: Db) {
   const agentsSvc = agentService(db);
@@ -90,6 +91,15 @@ export function approvalService(db: Db) {
         }
       }
 
+      if (updated.type === "plugin_review") {
+        const payload = updated.payload as Record<string, unknown>;
+        const pluginId = typeof payload.pluginId === "string" ? payload.pluginId : null;
+        if (pluginId) {
+          await db.update(plugins).set({ status: "active", updatedAt: now }).where(eq(plugins.id, pluginId));
+          publishLiveEvent({ companyId: updated.companyId, type: "plugin.status", payload: { pluginId, status: "active" } });
+        }
+      }
+
       return updated;
     },
 
@@ -118,6 +128,15 @@ export function approvalService(db: Db) {
         const payloadAgentId = typeof payload.agentId === "string" ? payload.agentId : null;
         if (payloadAgentId) {
           await agentsSvc.terminate(payloadAgentId);
+        }
+      }
+
+      if (updated.type === "plugin_review") {
+        const payload = updated.payload as Record<string, unknown>;
+        const pluginId = typeof payload.pluginId === "string" ? payload.pluginId : null;
+        if (pluginId) {
+          await db.update(plugins).set({ status: "rejected", updatedAt: now }).where(eq(plugins.id, pluginId));
+          publishLiveEvent({ companyId: updated.companyId, type: "plugin.status", payload: { pluginId, status: "rejected" } });
         }
       }
 

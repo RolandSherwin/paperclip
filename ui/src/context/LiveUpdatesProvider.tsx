@@ -369,6 +369,12 @@ function invalidateActivityQueries(
     return;
   }
 
+  if (entityType === "plugin") {
+    queryClient.invalidateQueries({ queryKey: queryKeys.plugins.list(companyId) });
+    if (entityId) queryClient.invalidateQueries({ queryKey: queryKeys.plugins.detail(companyId, entityId) });
+    return;
+  }
+
   if (entityType === "cost_event") {
     queryClient.invalidateQueries({ queryKey: queryKeys.costs(companyId) });
     return;
@@ -450,6 +456,12 @@ function handleLiveEvent(
     if (agentId) queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agentId) });
     const toast = buildAgentStatusToast(payload, nameOf, queryClient, expectedCompanyId);
     if (toast) gatedPushToast(gate, pushToast, "agent-status", toast);
+    return;
+  }
+
+  if (event.type === "plugin.created" || event.type === "plugin.status") {
+    queryClient.invalidateQueries({ queryKey: ["plugins", expectedCompanyId] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.dashboard(expectedCompanyId) });
     return;
   }
 

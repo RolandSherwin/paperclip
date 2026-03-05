@@ -228,6 +228,26 @@ export {
   type CompanyPortabilityImport,
 } from "./validators/index.js";
 
+export {
+  PLUGIN_STATUSES,
+  PLUGIN_SOURCES,
+  type PluginStatus,
+  type PluginSource,
+} from "./constants.js";
+
+export type { Plugin, PluginListItem, PluginManifest } from "./types/index.js";
+
+export {
+  pluginManifestSchema,
+  createPluginSchema,
+  updatePluginSchema,
+  pluginProxyRequestSchema,
+  type PluginManifestInput,
+  type CreatePlugin,
+  type UpdatePlugin,
+  type PluginProxyRequest,
+} from "./validators/index.js";
+
 export { API_PREFIX, API } from "./api.js";
 export { normalizeAgentUrlKey, deriveAgentUrlKey, isUuidLike } from "./agent-url-key.js";
 export { deriveProjectUrlKey, normalizeProjectUrlKey } from "./project-url-key.js";

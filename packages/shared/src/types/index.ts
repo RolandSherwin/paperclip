@@ -52,6 +52,7 @@ export type {
   JoinRequest,
   InstanceUserRoleGrant,
 } from "./access.js";
+export type { Plugin, PluginListItem, PluginManifest } from "./plugin.js";
 export type {
   CompanyPortabilityInclude,
   CompanyPortabilitySecretRequirement,

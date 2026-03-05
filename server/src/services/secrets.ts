@@ -331,6 +331,8 @@ export function secretService(db: Db) {
       return resolved;
     },
 
+    resolveValue: resolveSecretValue,
+
     resolveAdapterConfigForRuntime: async (companyId: string, adapterConfig: Record<string, unknown>) => {
       const resolved = { ...adapterConfig };
       if (!Object.prototype.hasOwnProperty.call(adapterConfig, "env")) {

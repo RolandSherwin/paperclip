@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { companiesApi } from "../api/companies";
 import { accessApi } from "../api/access";
+import { pluginsApi } from "../api/plugins";
 import { queryKeys } from "../lib/queryKeys";
 import { Button } from "@/components/ui/button";
-import { Settings } from "lucide-react";
+import { Settings, Puzzle } from "lucide-react";
+import { StatusBadge } from "../components/StatusBadge";
 import { CompanyPatternIcon } from "../components/CompanyPatternIcon";
 import { Field, ToggleField, HintIcon } from "../components/agent-config-primitives";
 
@@ -74,6 +76,27 @@ export function CompanySettings() {
       setInviteError(err instanceof Error ? err.message : "Failed to create invite");
     },
   });
+  const { data: allPlugins } = useQuery({
+    queryKey: queryKeys.plugins.list(selectedCompanyId!, undefined),
+    queryFn: () => pluginsApi.list(selectedCompanyId!),
+    enabled: !!selectedCompanyId,
+  });
+
+  const togglePluginMutation = useMutation({
+    mutationFn: ({ pluginId, newStatus }: { pluginId: string; newStatus: string }) =>
+      pluginsApi.update(selectedCompanyId!, pluginId, { status: newStatus }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.plugins.list(selectedCompanyId!) });
+    },
+  });
+
+  const deletePluginMutation = useMutation({
+    mutationFn: (pluginId: string) => pluginsApi.remove(selectedCompanyId!, pluginId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.plugins.list(selectedCompanyId!) });
+    },
+  });
+
   const archiveMutation = useMutation({
     mutationFn: ({
       companyId,
@@ -269,6 +292,51 @@ export function CompanySettings() {
               <div className="text-xs text-muted-foreground">Share link</div>
               <div className="mt-1 break-all font-mono text-xs">{inviteLink}</div>
             </div>
+          )}
+        </div>
+      </div>
+
+      {/* Plugins */}
+      <div className="space-y-4">
+        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          Plugins
+        </div>
+        <div className="space-y-2 rounded-md border border-border px-4 py-4">
+          {(!allPlugins || allPlugins.length === 0) ? (
+            <p className="text-sm text-muted-foreground">No plugins installed.</p>
+          ) : (
+            allPlugins.map((plugin) => (
+              <div key={plugin.id} className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Puzzle className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="min-w-0">
+                    <span className="text-sm font-medium">{plugin.name}</span>
+                    {plugin.description && (
+                      <p className="text-xs text-muted-foreground truncate">{plugin.description}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <StatusBadge status={plugin.status} />
+                  {plugin.status === "active" && (
+                    <Button size="sm" variant="outline" onClick={() => togglePluginMutation.mutate({ pluginId: plugin.id, newStatus: "disabled" })}>
+                      Disable
+                    </Button>
+                  )}
+                  {plugin.status === "disabled" && (
+                    <Button size="sm" variant="outline" onClick={() => togglePluginMutation.mutate({ pluginId: plugin.id, newStatus: "active" })}>
+                      Enable
+                    </Button>
+                  )}
+                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => {
+                    if (!window.confirm(`Delete plugin "${plugin.name}"?`)) return;
+                    deletePluginMutation.mutate(plugin.id);
+                  }}>
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            ))
           )}
         </div>
       </div>

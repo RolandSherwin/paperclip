@@ -131,3 +131,14 @@ export {
   type UpdateMemberPermissions,
   type UpdateUserCompanyAccess,
 } from "./access.js";
+
+export {
+  pluginManifestSchema,
+  createPluginSchema,
+  updatePluginSchema,
+  pluginProxyRequestSchema,
+  type PluginManifestInput,
+  type CreatePlugin,
+  type UpdatePlugin,
+  type PluginProxyRequest,
+} from "./plugin.js";

@@ -126,7 +126,7 @@ export const PROJECT_COLORS = [
   "#3b82f6", // blue
 ] as const;
 
-export const APPROVAL_TYPES = ["hire_agent", "approve_ceo_strategy"] as const;
+export const APPROVAL_TYPES = ["hire_agent", "approve_ceo_strategy", "plugin_review"] as const;
 export type ApprovalType = (typeof APPROVAL_TYPES)[number];
 
 export const APPROVAL_STATUSES = [
@@ -189,6 +189,8 @@ export const LIVE_EVENT_TYPES = [
   "heartbeat.run.log",
   "agent.status",
   "activity.logged",
+  "plugin.created",
+  "plugin.status",
 ] as const;
 export type LiveEventType = (typeof LIVE_EVENT_TYPES)[number];
 
@@ -212,6 +214,12 @@ export type JoinRequestType = (typeof JOIN_REQUEST_TYPES)[number];
 
 export const JOIN_REQUEST_STATUSES = ["pending_approval", "approved", "rejected"] as const;
 export type JoinRequestStatus = (typeof JOIN_REQUEST_STATUSES)[number];
+
+export const PLUGIN_STATUSES = ["pending_review", "active", "disabled", "rejected"] as const;
+export type PluginStatus = (typeof PLUGIN_STATUSES)[number];
+
+export const PLUGIN_SOURCES = ["agent_created", "manual"] as const;
+export type PluginSource = (typeof PLUGIN_SOURCES)[number];
 
 export const PERMISSION_KEYS = [
   "agents:create",

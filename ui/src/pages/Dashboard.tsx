@@ -7,6 +7,7 @@ import { issuesApi } from "../api/issues";
 import { agentsApi } from "../api/agents";
 import { projectsApi } from "../api/projects";
 import { heartbeatsApi } from "../api/heartbeats";
+import { pluginsApi } from "../api/plugins";
 import { useCompany } from "../context/CompanyContext";
 import { useDialog } from "../context/DialogContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
@@ -23,6 +24,7 @@ import { Bot, CircleDot, DollarSign, ShieldCheck, LayoutDashboard } from "lucide
 import { ActiveAgentsPanel } from "../components/ActiveAgentsPanel";
 import { ChartCard, RunActivityChart, PriorityChart, IssueStatusChart, SuccessRateChart } from "../components/ActivityCharts";
 import { PageSkeleton } from "../components/PageSkeleton";
+import { PluginPanel } from "../components/PluginPanel";
 import type { Agent, Issue } from "@paperclipai/shared";
 
 function getRecentIssues(issues: Issue[]): Issue[] {
@@ -76,6 +78,12 @@ export function Dashboard() {
   const { data: runs } = useQuery({
     queryKey: queryKeys.heartbeats(selectedCompanyId!),
     queryFn: () => heartbeatsApi.list(selectedCompanyId!),
+    enabled: !!selectedCompanyId,
+  });
+
+  const { data: activePlugins } = useQuery({
+    queryKey: queryKeys.plugins.list(selectedCompanyId!, "active"),
+    queryFn: () => pluginsApi.list(selectedCompanyId!, "active"),
     enabled: !!selectedCompanyId,
   });
 
@@ -275,6 +283,17 @@ export function Dashboard() {
               <SuccessRateChart runs={runs ?? []} />
             </ChartCard>
           </div>
+
+          {activePlugins && activePlugins.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Plugins</h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                {activePlugins.map((plugin) => (
+                  <PluginPanel key={plugin.id} pluginId={plugin.id} />
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="grid md:grid-cols-2 gap-4">
             {/* Recent Activity */}
